@@ -4,6 +4,8 @@
 
 This document outlines three ranked strategies for refactoring the WECA Core Data ETL codebase to follow modern software design principles. Each strategy builds on the previous one, allowing for incremental implementation.
 
+> **📘 See Also:** For a critical evaluation of using the **dlt (data load tool)** framework as an alternative to these custom strategies, refer to **[DLT_EVALUATION.md](./DLT_EVALUATION.md)**. The evaluation includes a recommended **hybrid approach** that combines dlt for REST API extraction with custom code for transformations.
+
 **Current State:**
 - 1,044 lines in `get_ca_data.py` with 29 functions (procedural style)
 - 542 lines in `cesap-epc-load-duckdb-data.py` (Jupyter-style cells)
@@ -526,6 +528,23 @@ async def resilient_api_call(
 
 ---
 
+## Alternative: dlt Framework
+
+Before implementing these custom strategies, consider evaluating the **dlt (data load tool)** framework as documented in **[DLT_EVALUATION.md](./DLT_EVALUATION.md)**.
+
+**Key Findings:**
+- **dlt excels at:** REST API extraction with automatic pagination, schema inference, DuckDB integration
+- **dlt struggles with:** Complex Polars transformations, custom file operations, spatial data processing
+- **Recommended approach:** **Hybrid** - Use dlt for 70% (API extraction) + custom code for 30% (transformations)
+- **Time comparison:**
+  - Full custom (all 3 strategies): 6 weeks
+  - Full dlt adoption: 2.5 weeks (but less flexibility)
+  - **Hybrid approach: 4 weeks** (optimal balance)
+
+The hybrid approach would replace much of Strategy 1 and Strategy 2 with dlt's built-in capabilities, while maintaining custom code for complex transformations. Strategy 3 (async) could still be selectively applied to performance-critical paths not handled by dlt.
+
+---
+
 ## Conclusion
 
 These three strategies provide a clear path from the current procedural codebase to a modern, maintainable ETL system:
@@ -535,3 +554,5 @@ These three strategies provide a clear path from the current procedural codebase
 3. **Strategy 3** (async + observability) is optional but provides significant performance gains for large-scale operations.
 
 Each strategy follows the Python code guidelines in `agent-docs/` and leverages modern Python 3.12+ features. The incremental approach minimizes risk while delivering value at each phase.
+
+**However**, before starting, review **[DLT_EVALUATION.md](./DLT_EVALUATION.md)** to determine if a hybrid approach using the dlt framework would be more efficient for your specific use case.
