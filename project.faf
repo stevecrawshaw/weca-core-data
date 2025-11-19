@@ -1,0 +1,113 @@
+# FAF - Foundational AI Context
+project: weca-core-data
+type: data-engineering-etl
+context: I⚡🍊
+generated: 2025-11-19T17:09:36.683Z
+version: 3.3.1
+
+
+# The Formula
+human_input: Your project files
+multiplier: FAF Context
+output: 105% Big Orange Performance
+
+# Quick Context
+working_directory: /home/steve/projects/weca-core-data
+initialized_by: claude-faf-mcp
+vitamin_context: true
+faffless: true
+
+# Project Overview
+description: ETL pipeline for West of England Combined Authority (WECA) Core Data
+purpose: Extract spatial and environmental data from web sources, load into DuckDB for regional environmental assessments
+language: Python 3.13
+architecture: procedural-etl
+
+# Key Technologies
+database: DuckDB (with spatial extension)
+data_processing: Polars (primary), Pandas, GeoPandas
+data_sources: EPC, ONS geographies, ArcGIS REST APIs, NOMIS, DFT traffic data
+logging: Python logging (console + etl.log)
+
+# Core Components
+main_script: cesap-epc-load-duckdb-data.py
+utility_module: get_ca_data.py (30+ functions)
+schema_definitions: epc_schema.py
+sql_ddl: build_tables_queries.py
+update_script: update_epc.py
+
+# Data Flow
+pipeline: Web APIs → get_ca_data.py → Parquet files → DuckDB tables with spatial indexes
+output_database: ca_epc.duckdb
+
+# Development Tools
+linter: ruff (configured in ruff.toml, line-length=88)
+type_checker: mypy
+formatter: ruff format
+
+# Important Notes
+code_style: requires comprehensive refactoring (developer noted)
+testing: no test suite currently exists
+pattern: download once, process many times with parquet intermediates
+
+# Hybrid Implementation Plan (Active Refactoring)
+strategy: 70% dlt framework + 30% custom code
+timeline: 4 weeks (started 2025-11-19)
+phase_0_setup_poc: ✅ Complete (Week 1, 100%)
+phase_1_dlt_extractors: ✅ Complete (Week 2, 100%)
+phase_2_transformations: ✅ Complete (Week 3, 100%)
+phase_3_integration_testing: 🔄 In Progress (Week 4, 60%)
+
+# New Architecture Components
+extraction: dlt framework (sources/) for REST API extraction, pagination, DuckDB loading
+transformation: custom Polars code (transformers/) for complex transformations, spatial operations
+loading: custom DuckDB operations (loaders/) for spatial extensions, indexes, views
+orchestration: pipelines/ for ETL workflow coordination
+
+# Directory Structure (New)
+sources_dir: sources/ (arcgis_sources.py, epc_sources.py, other_sources.py)
+transformers_dir: transformers/ (geography.py, epc.py, emissions.py)
+loaders_dir: loaders/ (spatial_setup.py, create_views.py)
+pipelines_dir: pipelines/ (extract_all_sources.py, orchestrate_etl.py)
+dlt_config: .dlt/ (config.toml, secrets.toml - gitignored)
+
+# Phase 1 Accomplishments
+custom_paginators: ArcGISPaginator (handles exceededTransferLimit pattern)
+tested_sources: ArcGIS CA Boundaries (15 records), GHG Emissions (559,215 records)
+code_reduction: ~42% reduction in extraction code
+known_issue: EPC API incompatible with dlt rest_api_source (CSV responses, custom auth)
+
+# Phase 2 Accomplishments
+transformers_created: geography.py (6.6KB), epc.py (12.1KB), emissions.py (6.5KB)
+orchestration_pipeline: orchestrate_etl.py (13.2KB) - 3-stage ETL (Extract-Transform-Load)
+imd_2025_integrated: New data source from humaniverse R-universe (29 indicators, LSOA 2021)
+tests_created: test_transformers_geography.py (7.1KB)
+
+# Phase 3 Accomplishments (In Progress - 60%)
+loaders_module: ✅ Created (spatial_setup.py, create_views.py)
+spatial_operations: ✅ Migrated from build_tables_queries.py
+analytical_views: ✅ 6 views migrated (EPC, GHG, geographic lookups)
+dlt_api_fix: ✅ Fixed compatibility (dlt.destinations.duckdb instead of destination_config)
+pipeline_testing: ⚠️ BLOCKED (hangs during extraction, possible OOM/timeout issues)
+integration_tests: ⬜ Pending (test_integration.py)
+documentation: ⬜ Pending (README.md, CLAUDE.md, DEVELOPER_GUIDE.md)
+deprecation_warnings: ⬜ Pending (legacy modules)
+
+# Known Issues (2025-11-19)
+issue_1: Full pipeline hangs during data extraction (exit code 137 - OOM suspected)
+issue_2: PYTHONPATH must be set to project root for imports
+issue_3: Large datasets may require chunked processing or sampling mode
+resolution_needed: Create unit tests with small datasets, add progress logging, implement dry-run mode
+
+# Data Sources Status
+arcgis_sources: ✅ Working (custom ArcGISPaginator validated)
+epc_sources: ⚠️ Blocked (dlt auth incompatible, will use custom code in Phase 2)
+other_sources: ✅ Working (DFT traffic, GHG emissions, IMD 2025)
+imd_2025: ✅ New data source integrated (humaniverse R-universe, LSOA 2021, 29 indicators)
+
+# Migration Targets
+deprecated_files: get_ca_data.py (29 functions), cesap-epc-load-duckdb-data.py, build_tables_queries.py
+new_replacements: sources/ + transformers/ + loaders/ + pipelines/
+expected_outcome: 40% code reduction, improved maintainability, faster development
+
+

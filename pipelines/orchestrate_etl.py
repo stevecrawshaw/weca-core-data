@@ -90,9 +90,8 @@ def run_full_etl(
 
     pipeline = dlt.pipeline(
         pipeline_name="weca_etl",
-        destination="duckdb",
+        destination=dlt.destinations.duckdb(db_path),
         dataset_name="raw_data",
-        destination_config={"database": db_path},
     )
 
     # Extract ArcGIS geographies
