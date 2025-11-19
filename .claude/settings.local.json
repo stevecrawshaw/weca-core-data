@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "mcp__context7__get-library-docs"
+      "mcp__context7__get-library-docs",
+      "Bash(ruff format:*)",
+      "Bash(ruff check:*)",
+      "Bash(echo:*)",
+      "mcp__serena__initial_instructions",
+      "Bash(uv add:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "mcp__serena__get_symbols_overview",
+      "mcp__serena__activate_project",
+      "mcp__serena__find_symbol",
+      "mcp__serena__find_referencing_symbols",
+      "Bash(uv run python:*)"
     ],
     "deny": [],
     "ask": []

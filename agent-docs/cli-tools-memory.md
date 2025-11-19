@@ -12,7 +12,7 @@
     - rg -l "pattern" | xargs sed -i 's/old/new/g' for mass replacements
     - RESPECT WHITE SPACE in .py files
   5. Project Structure:
-    - tree -L 2 directories for quick overview
+    - 'cmd //c tree' -L 2 directories for quick overview
   6. JSON Inspection:
     - jq '.key' file.json for quick JSON parsing
 

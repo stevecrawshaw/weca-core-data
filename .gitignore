@@ -219,3 +219,11 @@ duckdb.exe
 .duckdb
 duckdb
 config.yml
+
+# dlt configuration
+.dlt/secrets.toml
+*.duckdb
+*.duckdb.wal
+
+# Proof of Concept experiments
+poc/
