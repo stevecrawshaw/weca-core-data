@@ -6,7 +6,7 @@ Replaces: cesap-epc-load-duckdb-data.py
 This pipeline:
 1. EXTRACT: Uses dlt sources to pull data from APIs
 2. TRANSFORM: Applies custom Polars transformations
-3. LOAD: Writes to DuckDB with spatial indexes and views
+3. LOAD: Writes to DuckDB with spatial extensions and geometry columns
 """
 
 import logging
@@ -71,7 +71,7 @@ def run_full_etl(
     Pipeline stages:
     1. Extract: dlt pulls data from APIs
     2. Transform: Custom Polars transformations
-    3. Load: DuckDB storage with spatial indexes
+    3. Load: DuckDB storage with spatial extensions
     """
 
     print("=" * 80)
@@ -304,12 +304,12 @@ def run_full_etl(
         print("STAGE 3: LOAD (Spatial Setup)")
         print("=" * 80)
 
-        print("\n[1/3] Installing spatial extension...")
+        print("\n[1/2] Installing spatial extension...")
         con.execute("INSTALL spatial;")
         con.execute("LOAD spatial;")
         print("[OK] Spatial extension loaded")
 
-        print("\n[2/3] Adding geometry columns...")
+        print("\n[2/2] Adding geometry columns...")
         # Add geometry column to LSOA PWC
         try:
             con.execute(
@@ -321,22 +321,6 @@ def run_full_etl(
             print("[OK] Geometry column added to LSOA PWC")
         except Exception as e:
             logger.warning(f"Could not add geometry column: {e}")
-
-        print("\n[3/3] Creating indexes...")
-        # Create indexes on key columns
-        indexes = [
-            ("lsoacd_pwc_idx", "transformed_data.lsoa_2021_pwc", "lsoa21cd"),
-            ("ladcd_lookup_idx", "transformed_data.ca_la_lookup", "ladcd"),
-        ]
-
-        for idx_name, table, column in indexes:
-            try:
-                con.execute(
-                    f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({column});"
-                )
-                print(f"[OK] Created index: {idx_name}")
-            except Exception as e:
-                logger.warning(f"Could not create index {idx_name}: {e}")
 
     finally:
         con.close()

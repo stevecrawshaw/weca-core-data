@@ -1173,23 +1173,6 @@ def add_geometry_columns(
     con.execute(f"ALTER TABLE {table_name} ADD COLUMN geom GEOMETRY;")
     con.execute(f"UPDATE {table_name} SET geom = ST_Point({x_col}, {y_col});")
     print(f"  ✓ Added geometry column to {table_name}")
-
-
-def create_spatial_indexes(con: duckdb.DuckDBPyConnection) -> None:
-    """
-    Create indexes on key columns
-
-    Replaces: create_*_index_query from build_tables_queries.py
-    """
-    indexes = [
-        ("lsoacd_pwc_idx", "transformed_data.lsoa_2021_pwc", "lsoa21cd"),
-        ("lsoa21cd_lookup_idx", "transformed_data.lsoa_2021_lookup_tbl", "lsoa21cd"),
-        ("lmk_key_idx", "transformed_data.epc_domestic", "lmk_key"),
-    ]
-
-    for idx_name, table, column in indexes:
-        con.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS {idx_name} ON {table} ({column});")
-        print(f"  ✓ Created index: {idx_name}")
 ```
 
 **Tasks:**
