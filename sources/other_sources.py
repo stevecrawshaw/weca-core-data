@@ -49,27 +49,46 @@ def ghg_emissions_resource():
     yield from df.to_dicts()
 
 
-@dlt.resource(name="imd_data", write_disposition="replace")
-def imd_resource():
+@dlt.resource(name="imd_2025", write_disposition="replace")
+def imd_2025_resource():
     """
-    Extract IMD (Index of Multiple Deprivation) data
+    Extract IMD 2025 (Index of Multiple Deprivation) data for England LSOA21
 
-    Replaces: read_process_imd() from get_ca_data.py
+    New data source: humaniverse R-universe package
+    URL: https://humaniverse.r-universe.dev/IMD/data/imd2025_england_lsoa21_indicators/csv
 
-    Note: This data requires custom transformation in Phase 2.
-    Here we just extract the raw data.
+    This replaces the old IMD 2019 data source and eliminates the need for
+    complex pivoting transformations. Data is already in wide format with
+    all IMD indicators as columns.
+
+    Returns:
+        33,755 England LSOAs with 29 IMD indicators including:
+        - Income domain
+        - Employment domain
+        - Health indicators
+        - Crime rates
+        - Housing affordability
+        - Education indicators
+        - Connectivity scores
 
     Yields:
-        Dictionary records of IMD data
+        Dictionary records of IMD data (one per LSOA)
     """
-    url = "https://opendatacommunities.org/downloads/cube-table?uri=http%3A%2F%2Fopendatacommunities.org%2Fdata%2Fsocietal-wellbeing%2Fimd2019%2Findices"
+    url = "https://humaniverse.r-universe.dev/IMD/data/imd2025_england_lsoa21_indicators/csv"
 
-    # Simple extraction - transformation happens in Phase 2
-    response = requests.get(url, timeout=30)
+    # R-universe blocks basic user agents, so use browser-like header
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "text/csv",
+    }
+
+    response = requests.get(url, headers=headers, timeout=60)
     response.raise_for_status()
 
-    # Parse CSV
+    # Parse CSV with Polars
     from io import StringIO
 
     df = pl.read_csv(StringIO(response.text))
+
+    # Yield as records for dlt
     yield from df.to_dicts()

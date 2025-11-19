@@ -1020,10 +1020,22 @@ def transform_ghg_emissions(raw_emissions_df: pl.DataFrame) -> pl.DataFrame:
 ```
 
 **Tasks:**
-- [ ] Create `transformers/emissions.py`
-- [ ] Migrate IMD transformation logic
-- [ ] Migrate emissions processing
-- [ ] Test transformations
+- [x] Create `transformers/emissions.py`
+- [x] **✅ IMD 2025 IMPLEMENTED:** New IMD data source from humaniverse R-universe package successfully integrated
+  - URL: https://humaniverse.r-universe.dev/IMD/data/imd2025_england_lsoa21_indicators/csv
+  - Data format: Wide format with 33,755 LSOAs × 29 clean indicators
+  - No pivoting required (major improvement over old IMD 2019 data)
+  - Implemented in `sources/other_sources.py` (extraction) and `transformers/emissions.py` (transformation)
+- [x] Migrate emissions processing
+- [x] Test transformations
+
+**✅ IMD 2025 DATA SOURCE INTEGRATED:**
+The new IMD (Index of Multiple Deprivation) 2025 data from the humaniverse R-universe package has been successfully implemented. Unlike the old IMD 2019 data that required complex pivoting (read_process_imd() in get_ca_data.py), the new data is:
+1. ✅ Already in wide format with all indicators as columns
+2. ✅ Clean snake_case column names
+3. ✅ LSOA 2021 geography (matches project standard)
+4. ✅ Simple transformation - just filter for WECA LSOAs
+5. ✅ 29 comprehensive IMD indicators including income, employment, health, crime, housing, education, and connectivity
 
 ### Day 5: Integration Pipeline
 

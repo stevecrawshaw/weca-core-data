@@ -13,7 +13,8 @@
       "mcp__serena__activate_project",
       "mcp__serena__find_symbol",
       "mcp__serena__find_referencing_symbols",
-      "Bash(uv run python:*)"
+      "Bash(uv run python:*)",
+      "Bash(fd:*)"
     ],
     "deny": [],
     "ask": []

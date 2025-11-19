@@ -12,7 +12,7 @@ from sources.arcgis_sources import arcgis_geographies_source, ca_boundaries_sour
 from sources.other_sources import (
     dft_traffic_resource,
     ghg_emissions_resource,
-    imd_resource,
+    imd_2025_resource,
 )
 
 # EPC source commented out - needs custom auth handling
@@ -72,9 +72,9 @@ def extract_all_data(db_path: str = "data/ca_epc.duckdb"):
     load_info = pipeline.run(ghg_emissions_resource())
     print(f"   [OK] Loaded: {load_info.load_id}")
 
-    # Extract IMD data
-    print("\n5. Extracting IMD data...")
-    load_info = pipeline.run(imd_resource())
+    # Extract IMD 2025 data
+    print("\n5. Extracting IMD 2025 data...")
+    load_info = pipeline.run(imd_2025_resource())
     print(f"   [OK] Loaded: {load_info.load_id}")
 
     # EPC extraction - commented out, needs custom handling
