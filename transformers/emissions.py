@@ -84,7 +84,7 @@ def transform_ghg_emissions(
 
 def transform_dft_lookup(
     raw_dft_df: pl.DataFrame,
-    la_codes: list[str],
+    la_codes: list[str] | None = None,
 ) -> pl.DataFrame:
     """
     Transform DFT (Department for Transport) traffic data lookup.
@@ -96,7 +96,7 @@ def transform_dft_lookup(
 
     Args:
         raw_dft_df: Raw DFT annual traffic data
-        la_codes: List of LA codes to filter for (Combined Authority LAs)
+        la_codes: Optional list of LA codes to filter for (if None, returns all)
 
     Returns:
         Lookup DataFrame with dft_la_id, ladcd, and year columns
@@ -115,7 +115,7 @@ def transform_dft_lookup(
                 f"Missing required columns: {missing_cols}. Available: {raw_dft_df.columns}"
             )
 
-        # Get most recent year's data and filter for CA LAs
+        # Get most recent year's data
         dft_lookup_df = (
             raw_dft_df.filter(pl.col("year") == pl.col("year").max())
             .select(
@@ -125,12 +125,19 @@ def transform_dft_lookup(
                     pl.col("year"),
                 ]
             )
-            .filter(pl.col("ladcd").is_in(la_codes))
         )
 
-        logger.info(
-            f"Transformed DFT lookup: {len(dft_lookup_df)} LAs for year {dft_lookup_df['year'][0]}"
-        )
+        # Filter for specific LA codes if provided
+        if la_codes is not None:
+            dft_lookup_df = dft_lookup_df.filter(pl.col("ladcd").is_in(la_codes))
+
+        if len(dft_lookup_df) > 0:
+            logger.info(
+                f"Transformed DFT lookup: {len(dft_lookup_df)} LAs for year {dft_lookup_df['year'][0]}"
+            )
+        else:
+            logger.warning("DFT lookup resulted in 0 records - check LA codes")
+
         return dft_lookup_df
 
     except Exception as e:
