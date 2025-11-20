@@ -195,107 +195,134 @@ def run_full_etl(
         # Create transformed_data schema
         con.execute("CREATE SCHEMA IF NOT EXISTS transformed_data")
 
-        # ----------------------------------------------------------------------
-        # 2.1: Transform CA/LA Lookup
-        # ----------------------------------------------------------------------
-        print("\n[1/6] Transforming CA/LA lookup data...")
+        # Initialize la_codes for filtering (will be None if ArcGIS skipped)
+        la_codes = None
 
-        # Get raw data from dlt extraction
-        # Note: Adjust table name based on actual dlt table naming
-        try:
-            raw_ca_la = con.sql(
-                "SELECT * FROM raw_data.lsoa_2021_lookups"
+        # ----------------------------------------------------------------------
+        # 2.1: Transform CA/LA Lookup (requires ArcGIS data)
+        # ----------------------------------------------------------------------
+        if not skip_arcgis:
+            print("\n[1/6] Transforming CA/LA lookup data...")
+
+            # Get raw data from dlt extraction
+            try:
+                raw_ca_la = con.sql(
+                    "SELECT * FROM raw_data.lsoa_2021_lookups"
+                ).pl()
+            except Exception as e:
+                logger.warning(f"Could not find CA/LA lookup table: {e}")
+                logger.info("Attempting to use alternative source...")
+                # Alternative: use LSOA boundaries which also contain LA info
+                raw_ca_la = con.sql(
+                    "SELECT * FROM raw_data.lsoa_2021_boundaries LIMIT 1000"
+                ).pl()
+
+            transformed_ca_la = transform_ca_la_lookup(raw_ca_la, inc_ns=True)
+
+            con.execute("DROP TABLE IF EXISTS transformed_data.ca_la_lookup")
+            con.execute(
+                "CREATE TABLE transformed_data.ca_la_lookup AS SELECT * FROM transformed_ca_la"
+            )
+            print(f"[OK] CA/LA lookup: {len(transformed_ca_la)} records")
+
+            # Get LA codes for filtering other datasets
+            la_codes = get_ca_la_codes(transformed_ca_la)
+            logger.info(f"Working with {len(la_codes)} Local Authorities")
+        else:
+            print("\n[1/6] SKIPPED: CA/LA lookup (requires ArcGIS data)")
+            logger.info("CA/LA lookup skipped - ArcGIS data not available")
+
+        # ----------------------------------------------------------------------
+        # 2.2: Transform LSOA PWC (requires ArcGIS data)
+        # ----------------------------------------------------------------------
+        if not skip_arcgis:
+            print("\n[2/6] Transforming LSOA population-weighted centroids...")
+
+            raw_lsoa_pwc = con.sql(
+                "SELECT * FROM raw_data.lsoa_2021_pwc"
             ).pl()
-        except Exception as e:
-            logger.warning(f"Could not find CA/LA lookup table: {e}")
-            logger.info("Attempting to use alternative source...")
-            # Alternative: use LSOA boundaries which also contain LA info
-            raw_ca_la = con.sql(
-                "SELECT * FROM raw_data.lsoa_2021_boundaries LIMIT 1000"
-            ).pl()
 
-        transformed_ca_la = transform_ca_la_lookup(raw_ca_la, inc_ns=True)
+            transformed_lsoa_pwc = transform_lsoa_pwc(raw_lsoa_pwc)
 
-        con.execute("DROP TABLE IF EXISTS transformed_data.ca_la_lookup")
-        con.execute(
-            "CREATE TABLE transformed_data.ca_la_lookup AS SELECT * FROM transformed_ca_la"
-        )
-        print(f"[OK] CA/LA lookup: {len(transformed_ca_la)} records")
-
-        # Get LA codes for filtering other datasets
-        la_codes = get_ca_la_codes(transformed_ca_la)
-        logger.info(f"Working with {len(la_codes)} Local Authorities")
-
-        # ----------------------------------------------------------------------
-        # 2.2: Transform LSOA PWC
-        # ----------------------------------------------------------------------
-        print("\n[2/6] Transforming LSOA population-weighted centroids...")
-
-        raw_lsoa_pwc = con.sql(
-            "SELECT * FROM raw_data.lsoa_2021_pwc"
-        ).pl()
-
-        transformed_lsoa_pwc = transform_lsoa_pwc(raw_lsoa_pwc)
-
-        con.execute("DROP TABLE IF EXISTS transformed_data.lsoa_2021_pwc")
-        con.execute(
-            "CREATE TABLE transformed_data.lsoa_2021_pwc AS SELECT * FROM transformed_lsoa_pwc"
-        )
-        print(f"[OK] LSOA PWC: {len(transformed_lsoa_pwc)} records")
+            con.execute("DROP TABLE IF EXISTS transformed_data.lsoa_2021_pwc")
+            con.execute(
+                "CREATE TABLE transformed_data.lsoa_2021_pwc AS SELECT * FROM transformed_lsoa_pwc"
+            )
+            print(f"[OK] LSOA PWC: {len(transformed_lsoa_pwc)} records")
+        else:
+            print("\n[2/6] SKIPPED: LSOA PWC (requires ArcGIS data)")
+            logger.info("LSOA PWC skipped - ArcGIS data not available")
 
         # ----------------------------------------------------------------------
         # 2.3: Transform GHG Emissions
         # ----------------------------------------------------------------------
         print("\n[3/6] Transforming GHG emissions data...")
 
-        raw_ghg = con.sql("SELECT * FROM raw_data.ghg_emissions").pl()
-
-        transformed_ghg = transform_ghg_emissions(raw_ghg, la_codes=la_codes)
-
-        con.execute("DROP TABLE IF EXISTS transformed_data.ghg_emissions")
-        con.execute(
-            "CREATE TABLE transformed_data.ghg_emissions AS SELECT * FROM transformed_ghg"
-        )
-        print(f"[OK] GHG emissions: {len(transformed_ghg)} records")
+        try:
+            raw_ghg = con.sql("SELECT * FROM raw_data.ghg_emissions").pl()
+            transformed_ghg = transform_ghg_emissions(raw_ghg, la_codes=la_codes)
+            con.execute("DROP TABLE IF EXISTS transformed_data.ghg_emissions")
+            con.execute(
+                "CREATE TABLE transformed_data.ghg_emissions AS SELECT * FROM transformed_ghg"
+            )
+            print(f"[OK] GHG emissions: {len(transformed_ghg)} records")
+            if la_codes is None:
+                logger.info("GHG processed without LA filtering (all data)")
+        except Exception as e:
+            logger.error(f"GHG transformation failed: {e}")
+            print("[SKIP] GHG emissions transformation failed")
 
         # ----------------------------------------------------------------------
         # 2.4: Transform DFT Lookup
         # ----------------------------------------------------------------------
         print("\n[4/6] Transforming DFT traffic lookup...")
 
-        raw_dft = con.sql("SELECT * FROM raw_data.dft_traffic").pl()
-
-        transformed_dft = transform_dft_lookup(raw_dft, la_codes=la_codes)
-
-        con.execute("DROP TABLE IF EXISTS transformed_data.dft_la_lookup")
-        con.execute(
-            "CREATE TABLE transformed_data.dft_la_lookup AS SELECT * FROM transformed_dft"
-        )
-        print(f"[OK] DFT lookup: {len(transformed_dft)} records")
+        try:
+            raw_dft = con.sql("SELECT * FROM raw_data.dft_traffic").pl()
+            transformed_dft = transform_dft_lookup(raw_dft, la_codes=la_codes)
+            con.execute("DROP TABLE IF EXISTS transformed_data.dft_la_lookup")
+            con.execute(
+                "CREATE TABLE transformed_data.dft_la_lookup AS SELECT * FROM transformed_dft"
+            )
+            print(f"[OK] DFT lookup: {len(transformed_dft)} records")
+            if la_codes is None:
+                logger.info("DFT processed without LA filtering (all data)")
+        except Exception as e:
+            logger.error(f"DFT transformation failed: {e}")
+            print("[SKIP] DFT transformation failed")
 
         # ----------------------------------------------------------------------
         # 2.5: Transform IMD 2025
         # ----------------------------------------------------------------------
         print("\n[5/7] Transforming IMD 2025 data...")
 
-        raw_imd = con.sql("SELECT * FROM raw_data.imd_2025").pl()
+        try:
+            raw_imd = con.sql("SELECT * FROM raw_data.imd_2025").pl()
 
-        # Get LSOA codes from LSOA PWC table for filtering
-        lsoa_codes_df = con.sql("SELECT DISTINCT lsoa21cd FROM transformed_data.lsoa_2021_pwc").pl()
-        lsoa_codes_list = lsoa_codes_df["lsoa21cd"].to_list()
+            # Get LSOA codes from LSOA PWC table for filtering (if available)
+            if not skip_arcgis:
+                lsoa_codes_df = con.sql("SELECT DISTINCT lsoa21cd FROM transformed_data.lsoa_2021_pwc").pl()
+                lsoa_codes_list = lsoa_codes_df["lsoa21cd"].to_list()
+            else:
+                # No filtering - process all IMD data
+                lsoa_codes_list = None
+                logger.info("Processing all IMD data without LSOA filtering")
 
-        transformed_imd = transform_imd_2025(raw_imd, lsoa_codes=lsoa_codes_list)
+            transformed_imd = transform_imd_2025(raw_imd, lsoa_codes=lsoa_codes_list)
 
-        con.execute("DROP TABLE IF EXISTS transformed_data.imd_2025")
-        con.execute(
-            "CREATE TABLE transformed_data.imd_2025 AS SELECT * FROM transformed_imd"
-        )
-        print(f"[OK] IMD 2025: {len(transformed_imd)} LSOAs with {len(transformed_imd.columns)} indicators")
+            con.execute("DROP TABLE IF EXISTS transformed_data.imd_2025")
+            con.execute(
+                "CREATE TABLE transformed_data.imd_2025 AS SELECT * FROM transformed_imd"
+            )
+            print(f"[OK] IMD 2025: {len(transformed_imd)} LSOAs with {len(transformed_imd.columns)} indicators")
+        except Exception as e:
+            logger.error(f"IMD transformation failed: {e}")
+            print("[SKIP] IMD transformation failed")
 
         # ----------------------------------------------------------------------
         # 2.6: Extract and Transform EPC Data (if requested)
         # ----------------------------------------------------------------------
-        if download_epc:
+        if download_epc and la_codes is not None:
             print("\n[6/7] Extracting and transforming EPC data...")
 
             if epc_from_date is None:
@@ -339,6 +366,9 @@ def run_full_etl(
                 print(f"[OK] EPC domestic: {len(combined_epc)} total records")
             else:
                 print("[WARN] No EPC data extracted")
+        elif download_epc and la_codes is None:
+            print("\n[6/7] Skipping EPC extraction (requires LA codes from ArcGIS data)")
+            logger.warning("EPC extraction skipped - ArcGIS data not available")
         else:
             print("\n[6/7] Skipping EPC extraction (download_epc=False)")
 
@@ -347,27 +377,34 @@ def run_full_etl(
         # ==========================================================================
         # STAGE 3: LOAD (Spatial Setup)
         # ==========================================================================
-        print("\n" + "=" * 80)
-        print("STAGE 3: LOAD (Spatial Setup)")
-        print("=" * 80)
+        if not skip_arcgis:
+            print("\n" + "=" * 80)
+            print("STAGE 3: LOAD (Spatial Setup)")
+            print("=" * 80)
 
-        print("\n[1/2] Installing spatial extension...")
-        con.execute("INSTALL spatial;")
-        con.execute("LOAD spatial;")
-        print("[OK] Spatial extension loaded")
+            print("\n[1/2] Installing spatial extension...")
+            con.execute("INSTALL spatial;")
+            con.execute("LOAD spatial;")
+            print("[OK] Spatial extension loaded")
 
-        print("\n[2/2] Adding geometry columns...")
-        # Add geometry column to LSOA PWC
-        try:
-            con.execute(
-                "ALTER TABLE transformed_data.lsoa_2021_pwc ADD COLUMN IF NOT EXISTS geom GEOMETRY;"
-            )
-            con.execute(
-                "UPDATE transformed_data.lsoa_2021_pwc SET geom = ST_Point(x, y);"
-            )
-            print("[OK] Geometry column added to LSOA PWC")
-        except Exception as e:
-            logger.warning(f"Could not add geometry column: {e}")
+            print("\n[2/2] Adding geometry columns...")
+            # Add geometry column to LSOA PWC
+            try:
+                con.execute(
+                    "ALTER TABLE transformed_data.lsoa_2021_pwc ADD COLUMN IF NOT EXISTS geom GEOMETRY;"
+                )
+                con.execute(
+                    "UPDATE transformed_data.lsoa_2021_pwc SET geom = ST_Point(x, y);"
+                )
+                print("[OK] Geometry column added to LSOA PWC")
+            except Exception as e:
+                logger.warning(f"Could not add geometry column: {e}")
+        else:
+            print("\n" + "=" * 80)
+            print("STAGE 3: LOAD (Spatial Setup)")
+            print("=" * 80)
+            print("\nSKIPPED: No spatial data available (ArcGIS was skipped)")
+            logger.info("Spatial setup skipped - no geographic data to process")
 
     finally:
         con.close()
