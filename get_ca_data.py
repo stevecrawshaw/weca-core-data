@@ -31,7 +31,34 @@ These are used in the notebook cesap_epc_load_duckdb.ipynb
 To populate a duckdb database which holds base data for analyses
 supporting the CESAP indicators. Plotting and further analysis are done in
 R scripts in this project folder.
+
+⚠️  DEPRECATION WARNING ⚠️
+This module is deprecated and will be removed in a future release.
+
+Please migrate to the new dlt-based pipeline:
+- New pipeline: pipelines/orchestrate_etl.py
+- Migration guide: MIGRATION.md
+- Quick start: README.md
+
+The new implementation provides:
+- Better maintainability (70% less code)
+- Faster development for new sources
+- Built-in retry logic and error handling
+- Sample mode for quick testing
+- Comprehensive test coverage
+
+For help migrating, see: docs/LOCAL_TESTING_GUIDE.md
 """
+
+import warnings
+
+warnings.warn(
+    "get_ca_data.py is deprecated and will be removed in a future release. "
+    "Use 'pipelines/orchestrate_etl.py' instead. See MIGRATION.md for migration guide.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,

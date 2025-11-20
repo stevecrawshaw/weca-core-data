@@ -1,4 +1,43 @@
 # %%
+"""
+⚠️  DEPRECATION WARNING ⚠️
+
+This script is deprecated and will be removed in a future release.
+
+Please migrate to the new dlt-based pipeline:
+  pipelines/orchestrate_etl.py
+
+Usage:
+  # Run full ETL with all data sources
+  PYTHONPATH=. uv run python pipelines/orchestrate_etl.py
+
+  # Run with sample mode (fast testing - 2-3 min)
+  PYTHONPATH=. uv run python pipelines/orchestrate_etl.py --sample --skip-arcgis
+
+  # Run without EPC data
+  python pipelines/orchestrate_etl.py --no-epc
+
+Migration Guide: MIGRATION.md
+Documentation: docs/LOCAL_TESTING_GUIDE.md
+Quick Start: README.md
+
+The new implementation provides:
+- 70% less code, better maintainability
+- Built-in error handling and retries
+- Sample mode for quick testing
+- Comprehensive test coverage
+- Windows + Linux + macOS support
+"""
+
+import warnings
+
+warnings.warn(
+    "cesap-epc-load-duckdb-data.py is deprecated. "
+    "Use 'pipelines/orchestrate_etl.py' instead. See MIGRATION.md for migration guide.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import glob
 import json
 
