@@ -103,12 +103,19 @@ def run_full_etl(
     # Extract ArcGIS geographies
     print("\n[1/5] Extracting ArcGIS geographical data...")
     logger.info("Starting ArcGIS extraction (LSOA boundaries, lookups, PWC)...")
-    load_info = pipeline.run(arcgis_geographies_source())
-    if load_info.has_failed_jobs:
-        logger.error("ArcGIS extraction failed!")
-        raise Exception("Failed to extract ArcGIS data")
-    logger.info(f"ArcGIS extraction completed: {load_info}")
-    print("[OK] ArcGIS data extracted")
+    logger.info("Note: This may take 5-10 minutes due to pagination...")
+    try:
+        load_info = pipeline.run(arcgis_geographies_source())
+        if load_info.has_failed_jobs:
+            logger.error("ArcGIS extraction failed!")
+            raise Exception("Failed to extract ArcGIS data")
+        logger.info(f"ArcGIS extraction completed: {load_info}")
+        print("[OK] ArcGIS data extracted")
+    except Exception as e:
+        logger.error(f"ArcGIS extraction failed: {e}")
+        if not sample_mode:
+            raise
+        logger.warning("Continuing in sample mode despite ArcGIS failure...")
 
     # Extract CA boundaries
     print("\n[2/5] Extracting Combined Authority boundaries...")
@@ -148,12 +155,19 @@ def run_full_etl(
     # Extract IMD 2025 data
     print("\n[5/5] Extracting IMD 2025 data...")
     logger.info(f"Starting IMD 2025 extraction (row_limit={row_limit})...")
-    load_info = pipeline.run(imd_2025_resource(row_limit=row_limit))
-    if load_info.has_failed_jobs:
-        logger.error("IMD extraction failed!")
-        raise Exception("Failed to extract IMD 2025 data")
-    logger.info(f"IMD 2025 extraction completed: {load_info}")
-    print("[OK] IMD 2025 data extracted")
+    try:
+        load_info = pipeline.run(imd_2025_resource(row_limit=row_limit))
+        if load_info.has_failed_jobs:
+            logger.error("IMD extraction failed!")
+            raise Exception("Failed to extract IMD 2025 data")
+        logger.info(f"IMD 2025 extraction completed: {load_info}")
+        print("[OK] IMD 2025 data extracted")
+    except Exception as e:
+        logger.error(f"IMD 2025 extraction failed: {e}")
+        logger.warning("IMD data may be blocked by robots.txt or rate limiting")
+        if not sample_mode:
+            raise
+        logger.warning("Continuing in sample mode despite IMD failure...")
 
     # ==========================================================================
     # STAGE 2: TRANSFORM
