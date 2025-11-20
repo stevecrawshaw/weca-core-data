@@ -61,6 +61,7 @@ def run_full_etl(
     epc_from_date: dict[str, int] | None = None,
     sample_mode: bool = False,
     sample_size: int = 1000,
+    skip_arcgis: bool = False,
 ) -> None:
     """
     Run complete ETL pipeline.
@@ -71,6 +72,7 @@ def run_full_etl(
         epc_from_date: EPC start date (dict with 'year' and 'month' keys)
         sample_mode: If True, use limited data for testing (default: False)
         sample_size: Number of records to extract in sample mode (default: 1000)
+        skip_arcgis: If True, skip ArcGIS extraction (very slow, 10-30 min)
 
     Pipeline stages:
     1. Extract: dlt pulls data from APIs
@@ -81,7 +83,9 @@ def run_full_etl(
     print("=" * 80)
     print("WECA CORE DATA ETL - HYBRID APPROACH")
     if sample_mode:
-        print(f"⚠️  SAMPLE MODE: Limited to {sample_size:,} records per source")
+        print(f"** SAMPLE MODE: Limited to {sample_size:,} records per source **")
+    if skip_arcgis:
+        print("** SKIPPING ARCGIS: Geographic sources will not be extracted **")
     print("=" * 80)
 
     # Ensure data directory exists
@@ -101,31 +105,40 @@ def run_full_etl(
     )
 
     # Extract ArcGIS geographies
-    print("\n[1/5] Extracting ArcGIS geographical data...")
-    logger.info("Starting ArcGIS extraction (LSOA boundaries, lookups, PWC)...")
-    logger.info("Note: This may take 5-10 minutes due to pagination...")
-    try:
-        load_info = pipeline.run(arcgis_geographies_source())
-        if load_info.has_failed_jobs:
-            logger.error("ArcGIS extraction failed!")
-            raise Exception("Failed to extract ArcGIS data")
-        logger.info(f"ArcGIS extraction completed: {load_info}")
-        print("[OK] ArcGIS data extracted")
-    except Exception as e:
-        logger.error(f"ArcGIS extraction failed: {e}")
-        if not sample_mode:
-            raise
-        logger.warning("Continuing in sample mode despite ArcGIS failure...")
+    if not skip_arcgis:
+        print("\n[1/5] Extracting ArcGIS geographical data...")
+        logger.info("Starting ArcGIS extraction (LSOA boundaries, lookups, PWC)...")
+        logger.info("WARNING: This may take 10-30 minutes due to pagination of ~42K records...")
+        logger.info("Use --skip-arcgis flag to bypass this step for faster testing")
+        try:
+            load_info = pipeline.run(arcgis_geographies_source())
+            if load_info.has_failed_jobs:
+                logger.error("ArcGIS extraction failed!")
+                raise Exception("Failed to extract ArcGIS data")
+            logger.info(f"ArcGIS extraction completed: {load_info}")
+            print("[OK] ArcGIS data extracted")
+        except Exception as e:
+            logger.error(f"ArcGIS extraction failed: {e}")
+            if not sample_mode:
+                raise
+            logger.warning("Continuing in sample mode despite ArcGIS failure...")
+    else:
+        print("\n[1/5] SKIPPED: ArcGIS geographical data")
+        logger.info("ArcGIS extraction skipped per --skip-arcgis flag")
 
     # Extract CA boundaries
-    print("\n[2/5] Extracting Combined Authority boundaries...")
-    logger.info("Starting CA boundaries extraction...")
-    load_info = pipeline.run(ca_boundaries_source())
-    if load_info.has_failed_jobs:
-        logger.error("CA boundaries extraction failed!")
-        raise Exception("Failed to extract CA boundaries")
-    logger.info(f"CA boundaries extraction completed: {load_info}")
-    print("[OK] CA boundaries extracted")
+    if not skip_arcgis:
+        print("\n[2/5] Extracting Combined Authority boundaries...")
+        logger.info("Starting CA boundaries extraction...")
+        load_info = pipeline.run(ca_boundaries_source())
+        if load_info.has_failed_jobs:
+            logger.error("CA boundaries extraction failed!")
+            raise Exception("Failed to extract CA boundaries")
+        logger.info(f"CA boundaries extraction completed: {load_info}")
+        print("[OK] CA boundaries extracted")
+    else:
+        print("\n[2/5] SKIPPED: Combined Authority boundaries")
+        logger.info("CA boundaries extraction skipped per --skip-arcgis flag")
 
     # Determine row limit for sample mode
     row_limit = sample_size if sample_mode else None
@@ -387,10 +400,12 @@ if __name__ == "__main__":
     # Check for command-line arguments
     sample_mode = "--sample" in sys.argv or "--test" in sys.argv
     full_mode = "--full" in sys.argv
+    skip_arcgis = "--skip-arcgis" in sys.argv
 
     # Run ETL pipeline
     # Use --sample or --test for sample mode (limited data)
     # Use --full for full production run
+    # Use --skip-arcgis to skip slow ArcGIS extraction (10-30 min)
     # Set download_epc=True to extract EPC data incrementally
     run_full_etl(
         db_path="data/ca_epc.duckdb",
@@ -398,4 +413,5 @@ if __name__ == "__main__":
         epc_from_date={"year": 2024, "month": 1},  # Adjust as needed
         sample_mode=sample_mode if not full_mode else False,
         sample_size=1000,  # Limit to 1000 records in sample mode
+        skip_arcgis=skip_arcgis,  # Skip ArcGIS if flag provided
     )
