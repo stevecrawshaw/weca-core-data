@@ -66,6 +66,11 @@ def arcgis_geographies_source():
         "client": {
             "base_url": ARCGIS_BASE_URL,
             "paginator": ArcGISPaginator(limit=2000),
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "application/json",
+                "Referer": "https://geoportal.statistics.gov.uk/",
+            },
         },
         "resources": [
             {
@@ -133,6 +138,11 @@ def ca_boundaries_source():
     config = {
         "client": {
             "base_url": ARCGIS_BASE_URL,
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "application/json",
+                "Referer": "https://geoportal.statistics.gov.uk/",
+            },
         },
         "resources": [
             {

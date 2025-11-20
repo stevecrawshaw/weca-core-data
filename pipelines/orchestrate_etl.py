@@ -59,6 +59,8 @@ def run_full_etl(
     db_path: str = "data/ca_epc.duckdb",
     download_epc: bool = False,
     epc_from_date: dict[str, int] | None = None,
+    sample_mode: bool = False,
+    sample_size: int = 1000,
 ) -> None:
     """
     Run complete ETL pipeline.
@@ -67,6 +69,8 @@ def run_full_etl(
         db_path: Path to DuckDB database
         download_epc: If True, extract EPC data via API (incremental)
         epc_from_date: EPC start date (dict with 'year' and 'month' keys)
+        sample_mode: If True, use limited data for testing (default: False)
+        sample_size: Number of records to extract in sample mode (default: 1000)
 
     Pipeline stages:
     1. Extract: dlt pulls data from APIs
@@ -76,6 +80,8 @@ def run_full_etl(
 
     print("=" * 80)
     print("WECA CORE DATA ETL - HYBRID APPROACH")
+    if sample_mode:
+        print(f"⚠️  SAMPLE MODE: Limited to {sample_size:,} records per source")
     print("=" * 80)
 
     # Ensure data directory exists
@@ -96,42 +102,57 @@ def run_full_etl(
 
     # Extract ArcGIS geographies
     print("\n[1/5] Extracting ArcGIS geographical data...")
+    logger.info("Starting ArcGIS extraction (LSOA boundaries, lookups, PWC)...")
     load_info = pipeline.run(arcgis_geographies_source())
     if load_info.has_failed_jobs:
         logger.error("ArcGIS extraction failed!")
         raise Exception("Failed to extract ArcGIS data")
+    logger.info(f"ArcGIS extraction completed: {load_info}")
     print("[OK] ArcGIS data extracted")
 
     # Extract CA boundaries
     print("\n[2/5] Extracting Combined Authority boundaries...")
+    logger.info("Starting CA boundaries extraction...")
     load_info = pipeline.run(ca_boundaries_source())
     if load_info.has_failed_jobs:
         logger.error("CA boundaries extraction failed!")
         raise Exception("Failed to extract CA boundaries")
+    logger.info(f"CA boundaries extraction completed: {load_info}")
     print("[OK] CA boundaries extracted")
+
+    # Determine row limit for sample mode
+    row_limit = sample_size if sample_mode else None
+    if sample_mode:
+        logger.info(f"Sample mode enabled: limiting to {sample_size:,} rows per source")
 
     # Extract DFT traffic data
     print("\n[3/5] Extracting DFT traffic data...")
-    load_info = pipeline.run(dft_traffic_resource())
+    logger.info(f"Starting DFT extraction (row_limit={row_limit})...")
+    load_info = pipeline.run(dft_traffic_resource(row_limit=row_limit))
     if load_info.has_failed_jobs:
         logger.error("DFT extraction failed!")
         raise Exception("Failed to extract DFT data")
+    logger.info(f"DFT extraction completed: {load_info}")
     print("[OK] DFT traffic data extracted")
 
     # Extract GHG emissions data
     print("\n[4/5] Extracting GHG emissions data...")
-    load_info = pipeline.run(ghg_emissions_resource())
+    logger.info(f"Starting GHG emissions extraction (row_limit={row_limit})...")
+    load_info = pipeline.run(ghg_emissions_resource(row_limit=row_limit))
     if load_info.has_failed_jobs:
         logger.error("GHG extraction failed!")
         raise Exception("Failed to extract GHG emissions data")
+    logger.info(f"GHG emissions extraction completed: {load_info}")
     print("[OK] GHG emissions data extracted")
 
     # Extract IMD 2025 data
     print("\n[5/5] Extracting IMD 2025 data...")
-    load_info = pipeline.run(imd_2025_resource())
+    logger.info(f"Starting IMD 2025 extraction (row_limit={row_limit})...")
+    load_info = pipeline.run(imd_2025_resource(row_limit=row_limit))
     if load_info.has_failed_jobs:
         logger.error("IMD extraction failed!")
         raise Exception("Failed to extract IMD 2025 data")
+    logger.info(f"IMD 2025 extraction completed: {load_info}")
     print("[OK] IMD 2025 data extracted")
 
     # ==========================================================================
@@ -347,10 +368,20 @@ def run_full_etl(
 
 
 if __name__ == "__main__":
+    import sys
+
+    # Check for command-line arguments
+    sample_mode = "--sample" in sys.argv or "--test" in sys.argv
+    full_mode = "--full" in sys.argv
+
     # Run ETL pipeline
+    # Use --sample or --test for sample mode (limited data)
+    # Use --full for full production run
     # Set download_epc=True to extract EPC data incrementally
     run_full_etl(
         db_path="data/ca_epc.duckdb",
         download_epc=False,  # Set to True to download EPC data
         epc_from_date={"year": 2024, "month": 1},  # Adjust as needed
+        sample_mode=sample_mode if not full_mode else False,
+        sample_size=1000,  # Limit to 1000 records in sample mode
     )
