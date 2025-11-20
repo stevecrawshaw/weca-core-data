@@ -15,11 +15,14 @@ import polars as pl
 
 
 @dlt.resource(name="dft_traffic", write_disposition="replace")
-def dft_traffic_resource():
+def dft_traffic_resource(row_limit: int | None = None):
     """
     Extract DFT traffic data from CSV
 
     Replaces: get_flat_data() for DFT CSV from get_ca_data.py
+
+    Args:
+        row_limit: If provided, limit extraction to this many rows (for testing)
 
     Yields:
         Dictionary records of DFT traffic data
@@ -27,30 +30,33 @@ def dft_traffic_resource():
     url = "https://storage.googleapis.com/dft-statistics/road-traffic/downloads/data-gov-uk/local_authority_traffic.csv"
 
     # Download and parse CSV using Polars
-    df = pl.read_csv(url)
+    df = pl.read_csv(url, n_rows=row_limit)
 
     # Yield as records for dlt
     yield from df.to_dicts()
 
 
 @dlt.resource(name="ghg_emissions", write_disposition="replace")
-def ghg_emissions_resource():
+def ghg_emissions_resource(row_limit: int | None = None):
     """
     Extract GHG emissions CSV
 
     Replaces: get_flat_data() for emissions CSV from get_ca_data.py
+
+    Args:
+        row_limit: If provided, limit extraction to this many rows (for testing)
 
     Yields:
         Dictionary records of GHG emissions data
     """
     url = "https://assets.publishing.service.gov.uk/media/68653c7ee6c3cc924228943f/2005-23-uk-local-authority-ghg-emissions-CSV-dataset.csv"
 
-    df = pl.read_csv(url)
+    df = pl.read_csv(url, n_rows=row_limit)
     yield from df.to_dicts()
 
 
 @dlt.resource(name="imd_2025", write_disposition="replace")
-def imd_2025_resource():
+def imd_2025_resource(row_limit: int | None = None):
     """
     Extract IMD 2025 (Index of Multiple Deprivation) data for England LSOA21
 
@@ -60,6 +66,9 @@ def imd_2025_resource():
     This replaces the old IMD 2019 data source and eliminates the need for
     complex pivoting transformations. Data is already in wide format with
     all IMD indicators as columns.
+
+    Args:
+        row_limit: If provided, limit extraction to this many rows (for testing)
 
     Returns:
         33,755 England LSOAs with 29 IMD indicators including:
@@ -88,7 +97,7 @@ def imd_2025_resource():
     # Parse CSV with Polars
     from io import StringIO
 
-    df = pl.read_csv(StringIO(response.text))
+    df = pl.read_csv(StringIO(response.text), n_rows=row_limit)
 
     # Yield as records for dlt
     yield from df.to_dicts()
