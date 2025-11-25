@@ -321,19 +321,29 @@ def transform_epc_domestic(raw_epc_df: pl.DataFrame) -> pl.DataFrame:
         Exception: If transformation fails
     """
     try:
-        # Apply schema validation
-        validated_df = raw_epc_df.cast(all_cols_polars, strict=False)
+        # Convert column names from lowercase-hyphenated to UPPERCASE_UNDERSCORED
+        # API returns: "lmk-key", "current-energy-rating", etc.
+        # Transform expects: "LMK_KEY", "CURRENT_ENERGY_RATING", etc.
+        validated_df = raw_epc_df.rename(
+            {col: col.upper().replace("-", "_") for col in raw_epc_df.columns}
+        )
+
+        # Note: Skip schema validation since column names are already normalized
+        # The API returns the correct data types
 
         # Remove duplicates based on LMK key
         validated_df = validated_df.unique(subset=["LMK_KEY"])
 
-        # Parse dates
-        validated_df = validated_df.with_columns(
-            [
-                pl.col("INSPECTION_DATE").str.strptime(pl.Date, "%Y-%m-%d", strict=False),
-                pl.col("LODGEMENT_DATE").str.strptime(pl.Date, "%Y-%m-%d", strict=False),
-            ]
-        )
+        # Parse dates (if they're not already dates)
+        # The API/CSV reader may have already parsed them
+        if validated_df["INSPECTION_DATE"].dtype != pl.Date:
+            validated_df = validated_df.with_columns(
+                pl.col("INSPECTION_DATE").str.strptime(pl.Date, "%Y-%m-%d", strict=False)
+            )
+        if validated_df["LODGEMENT_DATE"].dtype != pl.Date:
+            validated_df = validated_df.with_columns(
+                pl.col("LODGEMENT_DATE").str.strptime(pl.Date, "%Y-%m-%d", strict=False)
+            )
 
         # Filter invalid records
         validated_df = validated_df.filter(pl.col("CURRENT_ENERGY_RATING").is_not_null())

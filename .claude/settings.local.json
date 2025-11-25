@@ -18,7 +18,11 @@
       "mcp__context7__resolve-library-id",
       "Bash(PYTHONPATH=/home/steve/projects/weca-core-data uv run python:*)",
       "Bash(kill:*)",
-      "Bash(PYTHONPATH=. uv run python:*)"
+      "Bash(PYTHONPATH=. uv run python:*)",
+      "mcp__serena__get_current_config",
+      "mcp__serena__check_onboarding_performed",
+      "mcp__serena__list_memories",
+      "Bash(PYTHONPATH=. uv run pytest:*)"
     ],
     "deny": [],
     "ask": []

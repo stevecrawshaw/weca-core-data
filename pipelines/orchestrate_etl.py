@@ -15,6 +15,10 @@ from pathlib import Path
 import dlt
 import duckdb
 import polars as pl
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # dlt extractors (Phase 1)
 from sources.arcgis_sources import arcgis_geographies_source, ca_boundaries_source
@@ -322,8 +326,18 @@ def run_full_etl(
         # ----------------------------------------------------------------------
         # 2.6: Extract and Transform EPC Data (if requested)
         # ----------------------------------------------------------------------
-        if download_epc and la_codes is not None:
-            print("\n[6/7] Extracting and transforming EPC data...")
+        if download_epc:
+            # If no LA codes from ArcGIS, use hardcoded WECA codes
+            if la_codes is None:
+                logger.info("Using hardcoded WECA LA codes for EPC extraction")
+                la_codes = [
+                    "E06000022",  # Bath and North East Somerset
+                    "E06000023",  # Bristol, City of
+                    "E06000025",  # South Gloucestershire
+                    "E06000024",  # North Somerset
+                ]
+
+            print(f"\n[6/7] Extracting and transforming EPC data for {len(la_codes)} local authorities...")
 
             if epc_from_date is None:
                 # Default to last 3 months
@@ -366,9 +380,6 @@ def run_full_etl(
                 print(f"[OK] EPC domestic: {len(combined_epc)} total records")
             else:
                 print("[WARN] No EPC data extracted")
-        elif download_epc and la_codes is None:
-            print("\n[6/7] Skipping EPC extraction (requires LA codes from ArcGIS data)")
-            logger.warning("EPC extraction skipped - ArcGIS data not available")
         else:
             print("\n[6/7] Skipping EPC extraction (download_epc=False)")
 
@@ -432,21 +443,32 @@ def run_full_etl(
 
 
 if __name__ == "__main__":
+    import os
     import sys
 
     # Check for command-line arguments
     sample_mode = "--sample" in sys.argv or "--test" in sys.argv
     full_mode = "--full" in sys.argv
     skip_arcgis = "--skip-arcgis" in sys.argv
+    no_epc = "--no-epc" in sys.argv
+
+    # Determine if EPC should be downloaded
+    # Priority: 1) --no-epc flag (disable), 2) DOWNLOAD_EPC env var, 3) default True
+    if no_epc:
+        download_epc = False
+    else:
+        # Check environment variable (from .env file)
+        env_download_epc = os.getenv("DOWNLOAD_EPC", "true").lower()
+        download_epc = env_download_epc in ("true", "1", "yes")
 
     # Run ETL pipeline
     # Use --sample or --test for sample mode (limited data)
     # Use --full for full production run
     # Use --skip-arcgis to skip slow ArcGIS extraction (10-30 min)
-    # Set download_epc=True to extract EPC data incrementally
+    # Use --no-epc to skip EPC data extraction
     run_full_etl(
         db_path="data/ca_epc.duckdb",
-        download_epc=False,  # Set to True to download EPC data
+        download_epc=download_epc,
         epc_from_date={"year": 2024, "month": 1},  # Adjust as needed
         sample_mode=sample_mode if not full_mode else False,
         sample_size=1000,  # Limit to 1000 records in sample mode

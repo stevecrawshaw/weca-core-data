@@ -17,6 +17,7 @@ dependencies = [
     "polars>=1.20.0",
     "pyarrow>=18.1.0",
     "pyjanitor>=0.30.0",
+    "python-dotenv>=1.2.1",
     "pyyaml>=6.0.2",
     "visidata>=3.1.1",
 ]
